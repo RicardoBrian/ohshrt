@@ -128,7 +128,10 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session" && method === "GET") {
     const authenticated = await isAuthenticated(request, env.SESSION_SECRET);
-    return jsonResponse({ authenticated });
+    // The admin page is served from its own hostname, so tell it which origin
+    // the links should be handed out under.
+    const baseUrl = env.PUBLIC_BASE_URL || new URL(request.url).origin;
+    return jsonResponse({ authenticated, baseUrl });
   }
 
   // Everything below requires a valid session.

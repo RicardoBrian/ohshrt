@@ -1,5 +1,9 @@
 const app = document.getElementById("app");
 
+// Origin the short links are handed out under. The admin page may be served
+// from a different hostname, so /api/session tells us the public one.
+let publicBase = location.origin;
+
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, (c) => ({
     "&": "&amp;",
@@ -170,11 +174,12 @@ async function loadLinks() {
     }
     listEl.innerHTML = links
       .map((link) => {
-        const shortUrl = `${location.origin}/${link.code}`;
+        const shortUrl = `${publicBase}/${link.code}`;
+        const shortHost = new URL(publicBase).host;
         return `
           <div class="link-card" data-code="${escapeHtml(link.code)}">
             <div class="link-info">
-              <a class="link-short" href="${escapeHtml(shortUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location.host)}/${escapeHtml(link.code)}</a>
+              <a class="link-short" href="${escapeHtml(shortUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(shortHost)}/${escapeHtml(link.code)}</a>
               <div class="link-original" title="${escapeHtml(link.url)}">${escapeHtml(link.url)}</div>
               <div class="link-date">${formatDate(link.createdAt)}</div>
             </div>
@@ -217,7 +222,8 @@ async function loadLinks() {
 
 async function init() {
   try {
-    const { authenticated } = await api("/api/session");
+    const { authenticated, baseUrl } = await api("/api/session");
+    if (baseUrl) publicBase = baseUrl.replace(/\/+$/, "");
     if (authenticated) {
       await renderDashboard();
     } else {
