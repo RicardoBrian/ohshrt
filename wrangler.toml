@@ -1,0 +1,12 @@
+name = "ohshrt"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "public"
+
+# Create a KV namespace with:
+#   npx wrangler kv namespace create LINKS
+# then replace the id below with the one it prints.
+# (For production on Cloudflare Pages, bind the same namespace in the
+# dashboard under Settings > Functions > KV namespace bindings.)
+[[kv_namespaces]]
+binding = "LINKS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
