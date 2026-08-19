@@ -1,7 +1,7 @@
 # oh sh.rt
 
 비밀번호로 보호되는 관리 페이지와 누구나 접근 가능한 단축 URL을 제공하는
-Cloudflare Pages 기반 URL 단축기입니다.
+Cloudflare Workers 기반 URL 단축기입니다.
 
 ## 기능
 
@@ -9,7 +9,7 @@ Cloudflare Pages 기반 URL 단축기입니다.
 - 단축된 URL(`/코드`)은 누구나 접근 가능 (302 리다이렉트)
 - 원본 URL 입력 시 자동 코드 생성, 또는 커스텀 코드 지정 가능
 - 관리 페이지에서 링크 목록 조회 / 복사 / 삭제
-- 별도 빌드 과정 없는 순수 HTML/CSS/JS + Cloudflare Pages Functions
+- 별도 빌드 과정 없는 순수 HTML/CSS/JS + Workers 정적 에셋
 
 ## 로컬 개발
 
@@ -31,36 +31,48 @@ npm run dev
 
 `http://localhost:8788` 에서 확인할 수 있습니다.
 
-## Cloudflare Pages 배포
+## 배포
 
-1. 이 저장소를 GitHub에 push 합니다.
-2. Cloudflare 대시보드 → **Workers & Pages** → **Create application** → **Pages** →
-   **Connect to Git** 에서 이 저장소를 선택합니다.
-3. 빌드 설정:
-   - Build command: (비워둠)
-   - Build output directory: `public`
-4. **Settings → Functions → KV namespace bindings** 에서
-   `LINKS` 라는 이름으로 위에서 만든 KV 네임스페이스를 연결합니다.
-5. **Settings → Environment variables** 에서 다음 값을 **Secret**으로 추가합니다:
+Cloudflare 대시보드에서 **Workers & Pages → Create → Workers → Import a
+repository** 로 이 저장소를 연결하면, 빌드 명령 없이 기본 배포 명령
+(`npx wrangler deploy`)만으로 배포됩니다.
+
+배포 전에 아래 두 가지를 설정해야 합니다.
+
+1. **KV 바인딩** — 위에서 만든 네임스페이스 id를 `wrangler.toml`의
+   `[[kv_namespaces]]` id 값에 넣고 커밋합니다. (대시보드에서
+   Settings → Bindings 로 연결해도 됩니다.)
+2. **Secret 두 개** — 대시보드의 Settings → Variables and Secrets 에서
+   추가하거나, 아래 명령으로 등록합니다.
+
+   ```bash
+   npx wrangler secret put ADMIN_PASSWORD
+   npx wrangler secret put SESSION_SECRET
+   ```
+
    - `ADMIN_PASSWORD`: 관리 페이지 비밀번호
    - `SESSION_SECRET`: 세션 쿠키 서명용 임의의 긴 랜덤 문자열
-   (Production과 Preview 환경 둘 다 설정하는 것을 권장합니다.)
-6. 배포가 끝나면 `프로젝트명.pages.dev` 주소가 자동으로 생성됩니다.
-   이후 **Custom domains** 에서 원하는 도메인을 연결할 수 있습니다.
+
+배포가 끝나면 `프로젝트명.<서브도메인>.workers.dev` 주소가 생성되며,
+Settings → Domains & Routes 에서 커스텀 도메인을 연결할 수 있습니다.
+
+로컬에서 직접 배포하려면:
+
+```bash
+npx wrangler login
+npm run deploy
+```
 
 ## 구조
 
 ```
-functions/
-  _utils.js          공용 세션/쿠키 유틸
-  [code].js          공개 리다이렉트 (/코드)
-  api/
-    login.js         비밀번호 검증, 세션 쿠키 발급
-    logout.js        세션 쿠키 삭제
-    session.js        로그인 상태 확인
-    links.js          목록 조회(GET) / 생성(POST)
-    links/[code].js   삭제(DELETE)
+src/
+  index.js      Worker 진입점 — /api/* 라우팅과 단축코드 리다이렉트
+  utils.js      세션 쿠키 서명/검증 유틸
 public/
-  index.html, style.css, app.js   프론트엔드 (SPA)
-wrangler.toml         KV 바인딩 및 Pages 설정
+  index.html, style.css, app.js   관리 페이지 (정적 에셋으로 서빙)
+wrangler.toml   정적 에셋 및 KV 바인딩 설정
 ```
+
+`public/` 의 파일과 경로가 겹치지 않는 요청만 Worker로 전달되므로,
+`/` 는 관리 페이지가, `/코드` 는 리다이렉트가 처리됩니다.
