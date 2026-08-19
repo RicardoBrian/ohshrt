@@ -6,7 +6,9 @@ import {
   passwordMatches,
 } from "./utils.js";
 
-const CODE_RE = /^[a-zA-Z0-9_-]{3,32}$/;
+// Letters of any script, so Korean codes like /수업 work, plus digits, - and _.
+// The u flag makes the length a count of characters rather than UTF-16 units.
+const CODE_RE = /^[\p{L}\p{N}_-]{2,32}$/u;
 const RESERVED = new Set(["api", "admin", "login", "logout", "favicon.ico"]);
 
 function randomCode(len = 6) {
@@ -79,7 +81,7 @@ async function handleCreateLink(request, env) {
   if (code) {
     if (!CODE_RE.test(code) || RESERVED.has(code.toLowerCase())) {
       return jsonResponse(
-        { error: "커스텀 코드는 영문/숫자/-/_ 3~32자여야 하며 예약어는 사용할 수 없습니다" },
+        { error: "커스텀 코드는 한글/영문/숫자/-/_ 2~32자여야 하며 예약어는 사용할 수 없습니다" },
         { status: 400 }
       );
     }
@@ -154,6 +156,16 @@ async function handleApi(request, env, path) {
   return jsonResponse({ error: "Not found" }, { status: 404 });
 }
 
+// A Korean code travels as percent-encoded UTF-8, so decode before the lookup.
+// Malformed escapes throw rather than matching anything, so treat them as a miss.
+function decodeCode(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 function notFound() {
   return new Response("404: 존재하지 않는 링크입니다.", {
     status: 404,
@@ -172,9 +184,10 @@ export default {
 
     // Static assets (the admin SPA) are served before the Worker runs, so any
     // single-segment path reaching here is a short code lookup.
-    const code = path.slice(1);
-    if (request.method === "GET" && code && !code.includes("/")) {
-      const raw = await env.LINKS.get(code);
+    const segment = path.slice(1);
+    if (request.method === "GET" && segment && !segment.includes("/")) {
+      const code = decodeCode(segment);
+      const raw = code && (await env.LINKS.get(code));
       if (raw) {
         return Response.redirect(JSON.parse(raw).url, 302);
       }

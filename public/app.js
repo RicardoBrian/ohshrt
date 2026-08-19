@@ -113,7 +113,7 @@ async function renderDashboard() {
             </div>
             <div class="field small">
               <label for="alias">커스텀 코드 (선택)</label>
-              <input type="text" id="alias" name="alias" placeholder="비워두면 자동생성" pattern="[a-zA-Z0-9_-]{3,32}" />
+              <input type="text" id="alias" name="alias" placeholder="비워두면 자동생성" maxlength="32" />
             </div>
           </div>
           <div class="form-actions">
